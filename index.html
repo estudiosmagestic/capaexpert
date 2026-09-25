@@ -7,7 +7,7 @@
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f1f5f9; margin: 0; padding: 24px; color: #1e293b; }
     .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: white; padding: 18px 24px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
     .top-bar h1 { margin: 0; font-size: 22px; color: #0f172a; }
-    .btn-file { background: #16a34a; color: white; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; display: inline-flex; align-items: center; gap: 8px; transition: background 0.2s; }
+    .btn-file { background: #16a34a; color: white; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; display: inline-flex; align-items: center; gap: 8px; }
     .btn-file:hover { background: #15803d; }
     .admin-badge { background: #e0f2fe; color: #0369a1; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; margin-left: 8px; vertical-align: middle; }
     
@@ -17,7 +17,6 @@
     .card.green { border-left-color: #059669; }
     .card.purple { border-left-color: #7c3aed; }
     .card.red { border-left-color: #dc2626; }
-    .card.amber { border-left-color: #d97706; }
     .card-title { font-size: 12px; font-weight: 700; text-transform: uppercase; color: #64748b; }
     .card-num { font-size: 28px; font-weight: 800; margin-top: 6px; }
 
@@ -63,7 +62,7 @@
     </div>
     <div id="adminControls">
       <label class="btn-file">
-        <span>Cargar Archivo CSV</span>
+        <span>Actualizar CSV</span>
         <input type="file" id="fileIn" accept=".csv" style="display:none;">
       </label>
     </div>
@@ -109,7 +108,7 @@
     <div class="chart-card">
       <h3>Top 5 Ejecutivos Líderes en Ventas</h3>
       <div id="topList" class="ranking-list">
-        <span style="color:#94a3b8; font-size:13px;">Carga datos para generar el podio.</span>
+        <span style="color:#94a3b8; font-size:13px;">Cargando podio...</span>
       </div>
     </div>
   </div>
@@ -130,7 +129,7 @@
         </tr>
       </thead>
       <tbody id="tblBody">
-        <tr><td colspan="9" style="text-align:center; padding:30px; color:#64748b;">No hay datos cargados todavía.</td></tr>
+        <tr><td colspan="9" style="text-align:center; padding:30px; color:#64748b;">Cargando datos...</td></tr>
       </tbody>
     </table>
   </div>
@@ -149,16 +148,19 @@
         document.getElementById('viewModeBadge').innerHTML = '<span class="admin-badge">Modo Consulta (Solo Lectura)</span>';
       }
 
-      const saved = localStorage.getItem('dashboard_kpi_data');
-      if (saved) {
-        try {
-          rawGlobalData = JSON.parse(saved);
-          poblarPlazas(rawGlobalData);
-          render();
-        } catch (e) {
-          console.error("Error al cargar datos locales", e);
-        }
-      }
+      fetch('datos.csv?v=' + Date.now())
+        .then(response => {
+          if (!response.ok) throw new Error("No se encontró datos.csv");
+          return response.text();
+        })
+        .then(csvText => {
+          parseCSV(csvText);
+        })
+        .catch(err => {
+          console.log("Aviso:", err);
+          const tbody = document.getElementById('tblBody');
+          tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:30px; color:#64748b;">No se pudo cargar el archivo datos.csv automáticamente.</td></tr>';
+        });
     });
 
     document.getElementById('fileIn').addEventListener('change', function(e) {
@@ -231,7 +233,6 @@
         }
       }
 
-      localStorage.setItem('dashboard_kpi_data', JSON.stringify(rawGlobalData));
       poblarPlazas(rawGlobalData);
       render();
     }
@@ -289,7 +290,7 @@
     function renderTable(list) {
       const tbody = document.getElementById('tblBody');
       if (list.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:24px; color:#94a3b8;">No se encontraron registros con los filtros actuales.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:24px; color:#94a3b8;">No se encontraron registros.</td></tr>';
         return;
       }
 
@@ -332,7 +333,7 @@
 
       if (totalV === 0) {
         pieSvg.innerHTML = '<circle r="16" cx="16" cy="16" fill="#e2e8f0"></circle>';
-        pieLegend.innerHTML = '<li style="color:#94a3b8;">No hay ventas registradas para graficar.</li>';
+        pieLegend.innerHTML = '<li style="color:#94a3b8;">No hay ventas para graficar.</li>';
       } else {
         let svgPaths = '';
         let legendHtml = '';
